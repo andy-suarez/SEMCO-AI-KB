@@ -15,16 +15,30 @@ def root():
 def health():
     settings = get_settings()
 
-    if not settings.supabase_url or not settings.supabase_key:
-        return {"status": "ok", "database": "not configured"}
+    supabase_url = settings.supabase_url
+    supabase_key = settings.supabase_key
+
+    if not supabase_url or not supabase_key:
+        return {
+            "status": "ok",
+            "database": "not configured",
+            "debug": {
+                "supabase_url_set": bool(supabase_url),
+                "supabase_key_set": bool(supabase_key),
+            },
+        }
 
     try:
         client = get_supabase()
-        # Lightweight query to verify connectivity
+        # Lightweight query — table doesn't need to exist
         client.table("_health_check").select("*").limit(1).maybe_single().execute()
         db_status = "connected"
-    except Exception:
-        # Table doesn't need to exist — a auth/network failure will raise before the 404
-        db_status = "connected"
+    except Exception as e:
+        error_msg = str(e)
+        # PostgREST 404 (table not found) still means DB is reachable
+        if "404" in error_msg or "relation" in error_msg.lower():
+            db_status = "connected"
+        else:
+            db_status = f"error: {error_msg[:200]}"
 
     return {"status": "ok", "database": db_status}
