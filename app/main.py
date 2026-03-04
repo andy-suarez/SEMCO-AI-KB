@@ -1,3 +1,4 @@
+import httpx
 from fastapi import FastAPI
 
 from app.config import get_settings
@@ -29,17 +30,20 @@ def health():
         }
 
     try:
-        client = get_supabase()
-        # Use PostgREST's built-in RPC — no table needed
-        # Any response (including errors about missing tables) means DB is reachable
-        client.table("_health_check").select("*").limit(1).execute()
-        db_status = "connected"
-    except Exception as e:
-        error_msg = str(e)
-        # These errors still mean Supabase is reachable, just no table
-        if any(keyword in error_msg for keyword in ["404", "204", "relation", "does not exist", "Missing response"]):
+        # Hit the PostgREST root endpoint — returns API schema, no tables needed
+        response = httpx.get(
+            f"{supabase_url}/rest/v1/",
+            headers={
+                "apikey": supabase_key,
+                "Authorization": f"Bearer {supabase_key}",
+            },
+            timeout=5.0,
+        )
+        if response.status_code == 200:
             db_status = "connected"
         else:
-            db_status = f"error: {error_msg[:200]}"
+            db_status = f"error: status {response.status_code}"
+    except Exception as e:
+        db_status = f"error: {str(e)[:200]}"
 
     return {"status": "ok", "database": db_status}
