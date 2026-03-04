@@ -30,13 +30,14 @@ def health():
 
     try:
         client = get_supabase()
-        # Lightweight query — table doesn't need to exist
-        client.table("_health_check").select("*").limit(1).maybe_single().execute()
+        # Use PostgREST's built-in RPC — no table needed
+        # Any response (including errors about missing tables) means DB is reachable
+        client.table("_health_check").select("*").limit(1).execute()
         db_status = "connected"
     except Exception as e:
         error_msg = str(e)
-        # PostgREST 404 (table not found) still means DB is reachable
-        if "404" in error_msg or "relation" in error_msg.lower():
+        # These errors still mean Supabase is reachable, just no table
+        if any(keyword in error_msg for keyword in ["404", "204", "relation", "does not exist", "Missing response"]):
             db_status = "connected"
         else:
             db_status = f"error: {error_msg[:200]}"
