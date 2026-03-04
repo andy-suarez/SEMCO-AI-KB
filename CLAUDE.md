@@ -158,11 +158,20 @@ Sources consolidated into master DB:
 CLAUDE.md              # System rules, architecture, dos/don'ts (this file)
 UPDATE.md              # Changelog for all project changes
 requirements.txt       # Python dependencies (Render uses this for builds)
+migrations/
+  001_create_kb_entries.sql  # Run in Supabase SQL Editor to create table
 app/
   __init__.py
   main.py              # FastAPI app entry point, root + health routes
   config.py            # Pydantic BaseSettings (env vars: SUPABASE_URL, SUPABASE_KEY, etc.)
   db.py                # Supabase client initialization
+  models/
+    __init__.py
+    kb.py              # Pydantic models: KBEntryCreate, KBEntryUpdate, KBEntryRead, KBEntryList
+  routers/
+    __init__.py
+    kb.py              # CRUD endpoints: GET/POST/PATCH/DELETE /kb
+    export.py          # CSV export: GET /export/csv
 ```
 
 ## Render Deployment

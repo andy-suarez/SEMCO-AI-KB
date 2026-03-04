@@ -35,3 +35,32 @@ All notable changes to this project will be documented in this file.
 
 ### Verified
 - Local run: both `/` and `/health` return 200 OK
+
+---
+
+## [2026-03-04] - Knowledge Base CRUD + CSV Export
+
+### Added
+- `migrations/001_create_kb_entries.sql` - Table creation script (run in Supabase SQL Editor)
+- `app/models/kb.py` - Pydantic models: `KBEntryCreate`, `KBEntryUpdate`, `KBEntryRead`, `KBEntryList`
+- `app/routers/kb.py` - CRUD endpoints for `/kb` (list, get, create, update, delete)
+- `app/routers/export.py` - CSV export endpoint `GET /export/csv` (question+answer pairs for Lyro import)
+- Wired both routers into `app/main.py`
+
+### KB Table Schema
+- `id` (bigint auto), `question` (text), `answer` (text), `category` (text), `products` (text[]), `substrates` (text[]), `source` (text), `created_at`, `updated_at`
+- Indexes on category, source, and GIN indexes on products/substrates arrays
+- Auto-update trigger on `updated_at`
+- RLS enabled with service role full access policy
+
+### API Endpoints
+- `GET /kb/` - List entries (filter by category/source, paginate with limit/offset)
+- `GET /kb/{id}` - Get single entry
+- `POST /kb/` - Create entry
+- `PATCH /kb/{id}` - Partial update
+- `DELETE /kb/{id}` - Delete entry
+- `GET /export/csv` - Download all entries as CSV for Lyro
+
+### Verified
+- All 8 routes registered (confirmed via OpenAPI schema)
+- App starts locally without import errors

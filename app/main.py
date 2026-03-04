@@ -3,8 +3,12 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import get_supabase
+from app.routers import kb, export
 
 app = FastAPI(title="SEMCO AI KB API")
+
+app.include_router(kb.router)
+app.include_router(export.router)
 
 
 @app.get("/")
