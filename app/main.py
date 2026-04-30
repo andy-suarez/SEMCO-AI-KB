@@ -1,6 +1,9 @@
+import os
+
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from jwt.algorithms import get_default_algorithms
 
 from app.config import get_settings
 from app.db import get_supabase
@@ -60,4 +63,11 @@ def health():
     except Exception as e:
         db_status = f"error: {str(e)[:200]}"
 
-    return {"status": "ok", "database": db_status}
+    # Diagnostic info: which JWT algorithms PyJWT can actually verify
+    # (depends on cryptography being installed) and the deployed git commit.
+    return {
+        "status": "ok",
+        "database": db_status,
+        "git_commit": os.getenv("RENDER_GIT_COMMIT", "unknown")[:7],
+        "jwt_algorithms": sorted(get_default_algorithms().keys()),
+    }
