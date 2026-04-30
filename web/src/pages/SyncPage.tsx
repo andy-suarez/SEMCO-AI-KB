@@ -13,11 +13,15 @@ import { apiFetch } from "@/lib/api";
 import { listKBEntries } from "@/lib/kb";
 
 const LAST_EXPORT_KEY = "lastCsvExport";
+const REQUEST_TIMEOUT_MS = 90_000;
+const WAKING_NOTICE_DELAY_MS = 5_000;
+
+type Status = "idle" | "downloading" | "waking";
 
 export function SyncPage() {
   const [count, setCount] = useState<number | null>(null);
   const [lastExport, setLastExport] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [status, setStatus] = useState<Status>("idle");
 
   useEffect(() => {
     listKBEntries({ limit: 1 })
@@ -27,9 +31,24 @@ export function SyncPage() {
   }, []);
 
   async function handleDownload() {
-    setDownloading(true);
+    setStatus("downloading");
+
+    // After 5s with no response, swap the button label to "Waking up the API…"
+    // so the user knows it's a Render cold start, not a hang.
+    const wakingTimer = window.setTimeout(
+      () => setStatus("waking"),
+      WAKING_NOTICE_DELAY_MS
+    );
+
+    // Hard timeout so the button can't stay stuck forever.
+    const controller = new AbortController();
+    const abortTimer = window.setTimeout(
+      () => controller.abort(),
+      REQUEST_TIMEOUT_MS
+    );
+
     try {
-      const res = await apiFetch("/export/csv");
+      const res = await apiFetch("/export/csv", { signal: controller.signal });
       if (!res.ok) {
         throw new Error(
           res.status === 401
@@ -52,21 +71,30 @@ export function SyncPage() {
       setLastExport(now);
       toast.success("CSV downloaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Download failed");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        toast.error(
+          "Timed out after 90s. The API may still be waking up on the free tier — wait a moment and try again."
+        );
+      } else {
+        toast.error(err instanceof Error ? err.message : "Download failed");
+      }
     } finally {
-      setDownloading(false);
+      window.clearTimeout(wakingTimer);
+      window.clearTimeout(abortTimer);
+      setStatus("idle");
     }
   }
 
+  const buttonLabel =
+    status === "waking"
+      ? "Waking up the API…"
+      : status === "downloading"
+      ? "Downloading…"
+      : "Download CSV";
+
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Sync to Lyro</h1>
-        <p className="text-sm text-muted-foreground">
-          Lyro's Data Source API isn't on our current plan, so syncing is a two-step
-          manual flow: download the CSV here, then upload it to Tidio.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">Sync to Lyro</h1>
 
       <Card>
         <CardHeader>
@@ -81,9 +109,12 @@ export function SyncPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleDownload} disabled={downloading || count === null}>
+          <Button
+            onClick={handleDownload}
+            disabled={status !== "idle" || count === null}
+          >
             <Download className="mr-2 h-4 w-4" />
-            {downloading ? "Downloading…" : "Download CSV"}
+            {buttonLabel}
           </Button>
         </CardContent>
       </Card>
@@ -99,8 +130,7 @@ export function SyncPage() {
           <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
             <li>Open Tidio admin → Lyro AI → Knowledge sources.</li>
             <li>Find the existing CSV data source and replace / update it.</li>
-            <li>Upload the file you just downloaded.</li>
-            <li>Wait for Lyro to re-index (usually a minute or two).</li>
+            <li>Upload the new KB file.</li>
           </ol>
         </CardContent>
       </Card>
