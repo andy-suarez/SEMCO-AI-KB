@@ -1,12 +1,17 @@
 import csv
 import io
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from app.auth import verify_jwt
 from app.db import get_supabase
 
-router = APIRouter(prefix="/export", tags=["Export"])
+router = APIRouter(
+    prefix="/export",
+    tags=["Export"],
+    dependencies=[Depends(verify_jwt)],
+)
 
 
 @router.get("/csv")

@@ -1,11 +1,21 @@
 import httpx
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import get_supabase
 from app.routers import kb, export
 
 app = FastAPI(title="SEMCO AI KB API")
+
+_settings = get_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_settings.allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(kb.router)
 app.include_router(export.router)

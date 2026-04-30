@@ -1,11 +1,16 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.auth import verify_jwt
 from app.db import get_supabase
 from app.models.kb import KBEntryCreate, KBEntryUpdate, KBEntryRead, KBEntryList
 
-router = APIRouter(prefix="/kb", tags=["Knowledge Base"])
+router = APIRouter(
+    prefix="/kb",
+    tags=["Knowledge Base"],
+    dependencies=[Depends(verify_jwt)],
+)
 
 
 @router.get("/", response_model=KBEntryList)
