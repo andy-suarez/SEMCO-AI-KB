@@ -21,3 +21,10 @@ env/
 # Local data dumps (one-shot imports, exports, scratch)
 /scratch/
 *.csv.local
+
+# Node / React (web/)
+web/node_modules/
+web/dist/
+web/.env.local
+web/.env.*.local
+web/*.tsbuildinfo
