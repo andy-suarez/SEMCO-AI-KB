@@ -24,6 +24,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   entry: KBEntry | null;
   onSaved: () => void;
+  categories: string[];
+  sources: string[];
 };
 
 const empty: KBEntryInput = {
@@ -42,7 +44,14 @@ const stringToArray = (s: string): string[] =>
     .map((p) => p.trim())
     .filter(Boolean);
 
-export function KBEntryDialog({ open, onOpenChange, entry, onSaved }: Props) {
+export function KBEntryDialog({
+  open,
+  onOpenChange,
+  entry,
+  onSaved,
+  categories,
+  sources,
+}: Props) {
   const editing = entry !== null;
   const [form, setForm] = useState<KBEntryInput>(empty);
   const [productsText, setProductsText] = useState("");
@@ -134,19 +143,31 @@ export function KBEntryDialog({ open, onOpenChange, entry, onSaved }: Props) {
               <Label htmlFor="category">Category</Label>
               <Input
                 id="category"
+                list="kb-category-options"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="e.g. Application Inquiry"
+                placeholder="Select or type a category"
               />
+              <datalist id="kb-category-options">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="source">Source</Label>
               <Input
                 id="source"
+                list="kb-source-options"
                 value={form.source}
                 onChange={(e) => setForm({ ...form, source: e.target.value })}
-                placeholder="e.g. Excel Repository"
+                placeholder="Select or type a source"
               />
+              <datalist id="kb-source-options">
+                {sources.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
             </div>
           </div>
 

@@ -277,6 +277,8 @@ export function KBEntriesPage() {
         onOpenChange={setDialogOpen}
         entry={editingEntry}
         onSaved={refresh}
+        categories={facets.categories}
+        sources={facets.sources}
       />
       <DeleteConfirmDialog
         entry={deletingEntry}
