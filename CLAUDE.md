@@ -18,35 +18,61 @@ We do NOT build a custom chat UI or connect a custom LLM.
 | AI chatbot engine      | Lyro (Tidio) - powered by Claude          |
 | Knowledge base feed    | Tidio Lyro Data Sources (CSV import, URL scanning, manual Q&A) |
 | Master KB database     | PostgreSQL on Supabase                    |
-| Backend API            | FastAPI on Render                         |
-| Admin dashboard        | React or Vercel + FastAPI                 |
+| Backend API            | FastAPI on Render (`semco-ai-kb`)         |
+| Admin dashboard        | React + Vite + shadcn-style UI on Render Static Site (`semco-kb-admin`) |
+| Auth                   | Supabase Auth (email/password); JWT verified server-side via Supabase JWKS |
 | Chat widget            | Tidio (single widget, all brand sites)    |
-| Live data lookups      | Lyro Actions -> FastAPI endpoints on Render |
+| Live data lookups      | Lyro Actions -> FastAPI endpoints on Render *(blocked: Lyro API not on current Tidio plan)* |
 | Product recommendations| Lyro Product Recommendations (OpenAPI) -> Shopify |
 | CRM                    | Zoho CRM (existing)                       |
 | E-commerce             | Shopify (existing)                        |
 | Backups                | Supabase (S3-compatible storage, JSON format) |
 
+**Live URLs:**
+- API: `https://semco-ai-kb.onrender.com`
+- Admin UI: `https://semco-kb-admin.onrender.com`
+
 ## Tech Stack
 
-- **Backend:** Python, FastAPI
-- **Database:** PostgreSQL on Supabase
-- **Hosting:** Render (backend API + admin dashboard)
-- **Frontend (admin):** React or Vercel
-- **Integrations:** Shopify API, Zoho CRM API, Tidio/Lyro API
+- **Backend:** Python, FastAPI, PyJWT (with cryptography for ES256/RS256), httpx
+- **Database:** PostgreSQL on Supabase, RLS enforced for `kb_entries`
+- **Hosting:** Render (Web Service for API, Static Site for admin UI; both free tier)
+- **Frontend (admin):** Vite + React 18 + TypeScript + Tailwind CSS + shadcn-style components (Radix Dialog primitives, hand-rolled in `web/src/components/ui/`)
+- **Auth:** Supabase Auth (email/password); JWT verified via JWKS public-key lookup (asymmetric ES256/RS256, not legacy HS256)
+- **Integrations:** Shopify API, Zoho CRM API; Tidio API gated behind a Lyro-tier plan we don't currently have
 - **Data format:** CSV for Lyro imports, JSON for backups
 
 ## Installed Dependencies
 
-### Python Packages (via pip3 --user)
+### Python Packages (`requirements.txt`, installed by Render at deploy)
 
-| Package            | Version | Purpose                                      |
-|--------------------|---------|----------------------------------------------|
-| `supabase`         | 2.28.0  | Supabase Python client - DB queries, auth, storage, realtime |
-| `psycopg2-binary`  | 2.9.11  | Direct PostgreSQL connection to Supabase Postgres |
-| `requests`         | 2.32.5  | HTTP client for Render REST API calls        |
-| `httpx`            | 0.28.1  | Async HTTP client (installed as supabase dependency) |
-| `pydantic`         | 2.12.5  | Data validation (installed as supabase dependency) |
+| Package              | Purpose                                                       |
+|----------------------|---------------------------------------------------------------|
+| `fastapi`            | API framework                                                 |
+| `uvicorn[standard]`  | ASGI server                                                   |
+| `supabase`           | Supabase Python client (anon + service role)                  |
+| `psycopg2-binary`    | Direct PostgreSQL fallback (rarely used; client lib preferred)|
+| `httpx`              | Async HTTP client                                             |
+| `python-dotenv`      | Local `.env` loading                                          |
+| `pydantic-settings`  | Typed env-var config                                          |
+| `pyjwt[crypto]`      | JWT decode/verify (PyJWKClient for asymmetric Supabase tokens) |
+| `cryptography`       | Backs ES256/RS256 signature checks; explicit dep so pip can't skip it on cache hits |
+
+### Node Packages (`web/package.json`, installed by Render Static Site)
+
+Selected highlights — see `web/package.json` for the full list:
+
+| Package                     | Purpose                                       |
+|-----------------------------|-----------------------------------------------|
+| `react` / `react-dom`       | UI runtime (v18)                              |
+| `react-router-dom`          | SPA routing                                   |
+| `@supabase/supabase-js`     | Auth + direct DB access (RLS-gated)           |
+| `@radix-ui/react-dialog`    | Accessible modal primitive                    |
+| `tailwindcss`               | Styling                                       |
+| `class-variance-authority`, `clsx`, `tailwind-merge` | shadcn-style component variants |
+| `lucide-react`              | Icons                                         |
+| `sonner`                    | Toast notifications                           |
+| `vite`, `typescript`        | Build / type-check                            |
 
 ### CLI Tools
 
@@ -100,6 +126,7 @@ Sources consolidated into master DB:
 ## DOs
 
 - Always export master DB as CSV (question + answer pairs) for Lyro import
+- Always edit KB entries in **Supabase** (via the admin UI or Studio), then re-export the CSV to Lyro. Supabase is the master; Lyro's index is a derived snapshot.
 - Deduplicate across all data sources before loading into master DB
 - Use Excel repo as the tiebreaker when sources conflict
 - Manually add high-priority Q&As with exact wording (safety procedures, warranty info)
@@ -112,6 +139,7 @@ Sources consolidated into master DB:
 - Store backups in Supabase storage as JSON format
 - Use Supabase client library for all DB operations (not raw SQL unless necessary)
 - Deploy backend services to Render; use Render's built-in logging and monitoring
+- Hit `Manual Deploy → Clear build cache & deploy` on the API service after dependency changes — Render's pip cache can hide new packages otherwise
 
 ## DON'Ts
 
@@ -120,12 +148,15 @@ Sources consolidated into master DB:
 - Do NOT bypass Lyro for AI responses; all AI answering goes through Tidio/Lyro
 - Do NOT import data into Lyro without deduplication against master DB first
 - Do NOT hardcode knowledge into the backend -- all knowledge lives in the master DB and flows to Lyro via CSV
+- Do NOT edit KB entries inside Tidio's Lyro UI. Anything edited there gets wiped on the next CSV re-upload. Edit in Supabase, re-export.
 - Do NOT skip the feedback loops (unanswered questions, conversation review, escalation learning, analytics)
 - Do NOT make Lyro answer questions it's unsure about -- configure confidence thresholds and "I don't know" behavior
 - Do NOT deploy to customer-facing sites without hitting 85% answer accuracy in internal testing
 - Do NOT forget safety disclaimers in Lyro Guidance configuration
 - Do NOT store secrets in code -- use environment variables on Render and Supabase project settings
 - Do NOT run raw SQL against Supabase in production when the client library covers the use case
+- Do NOT ship the Supabase **service role** key to the browser — only the anon key. RLS does the gating.
+- Do NOT use HS256 + a shared `SUPABASE_JWT_SECRET` for token verification on this project. Supabase issues asymmetric JWTs (ES256); verify via JWKS.
 
 ## Feedback Loops (All Required)
 
@@ -155,27 +186,97 @@ Sources consolidated into master DB:
 ## File Structure
 
 ```
-CLAUDE.md              # System rules, architecture, dos/don'ts (this file)
-UPDATE.md              # Changelog for all project changes
-requirements.txt       # Python dependencies (Render uses this for builds)
+CLAUDE.md                    # System rules, architecture, dos/don'ts (this file)
+UPDATE.md                    # Changelog for all project changes
+README.md                    # Project intro for new readers / managers
+Phase 0.5 UI.md              # Approved phase plan + final outcomes for the admin UI
+requirements.txt             # Python dependencies (Render uses this for builds)
+.env.example                 # Template env vars for local one-shot scripts
+.gitignore
+
 migrations/
-  001_create_kb_entries.sql  # Run in Supabase SQL Editor to create table
-app/
+  001_create_kb_entries.sql                   # Initial table + indexes + trigger + RLS
+  002_seed_kb_entries.sql                     # 148-row seed from Excel Repository
+  003_update_rls_for_authenticated_users.sql  # Tightens RLS to authenticated role only
+
+scripts/
+  import_csv.py              # Alternative one-shot importer via Supabase client (rarely used now)
+
+app/                         # FastAPI service (semco-ai-kb on Render)
   __init__.py
-  main.py              # FastAPI app entry point, root + health routes
-  config.py            # Pydantic BaseSettings (env vars: SUPABASE_URL, SUPABASE_KEY, etc.)
-  db.py                # Supabase client initialization
+  main.py                    # FastAPI app, CORS middleware, /, /health (with diagnostics), router mounts
+  config.py                  # Pydantic BaseSettings (SUPABASE_URL, SUPABASE_KEY, ALLOWED_ORIGINS, etc.)
+  db.py                      # Supabase client factory (service role)
+  auth.py                    # verify_jwt FastAPI dependency — Supabase JWKS lookup, ES256/RS256
   models/
     __init__.py
-    kb.py              # Pydantic models: KBEntryCreate, KBEntryUpdate, KBEntryRead, KBEntryList
+    kb.py                    # Pydantic models: KBEntryCreate/Update/Read/List
   routers/
     __init__.py
-    kb.py              # CRUD endpoints: GET/POST/PATCH/DELETE /kb
-    export.py          # CSV export: GET /export/csv
+    kb.py                    # CRUD endpoints: GET/POST/PATCH/DELETE /kb (JWT-protected)
+    export.py                # CSV export: GET /export/csv (JWT-protected)
+
+web/                         # React admin UI (semco-kb-admin Render Static Site)
+  package.json
+  tsconfig.json              # Single self-contained TS config (no project references)
+  vite.config.ts
+  tailwind.config.js
+  postcss.config.js
+  index.html
+  README.md                  # web-specific build/run notes
+  .env.example               # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_BASE_URL
+  src/
+    main.tsx                 # entry
+    App.tsx                  # router + AuthProvider
+    index.css                # Tailwind base + shadcn CSS variables
+    lib/
+      supabase.ts            # Supabase client factory (anon key)
+      auth.tsx               # AuthProvider context + useAuth hook
+      api.ts                 # apiFetch wrapper that attaches the user's JWT to FastAPI calls
+      kb.ts                  # KB types + Supabase CRUD queries (list/create/update/delete/facets)
+      utils.ts               # cn() className helper
+    components/
+      Layout.tsx             # sidebar + topbar (logged-in user, sign out)
+      KBEntryDialog.tsx      # add/edit form
+      DeleteConfirmDialog.tsx
+      ui/                    # shadcn-style primitives (button, card, dialog, input, label, select, table, textarea, badge)
+    pages/
+      LoginPage.tsx          # email/password sign-in
+      KBEntriesPage.tsx      # main table + filters + pagination + add/edit/delete
+      UnansweredPage.tsx     # placeholder; needs Lyro API access we don't have
+      SyncPage.tsx           # CSV download + manual upload instructions
+    routes/
+      AuthGuard.tsx          # redirects unauthenticated users to /login
 ```
 
 ## Render Deployment
 
+Two services, both auto-deploy from `main`. Free tier on both.
+
+### `semco-ai-kb` (Web Service / Python — the FastAPI API)
+
 - **Build command:** `pip install -r requirements.txt`
 - **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Env vars to set in Render dashboard:** `SUPABASE_URL`, `SUPABASE_KEY`, `SUPABASE_DB_URL` (optional), `RENDER_API_KEY` (optional)
+- **Env vars:**
+  - `SUPABASE_URL` — Supabase project URL (also used to derive the JWKS endpoint for JWT verification)
+  - `SUPABASE_KEY` — Supabase service role key (bypasses RLS for backend/scripts)
+  - `ALLOWED_ORIGINS` — comma-separated, must include `https://semco-kb-admin.onrender.com` and (optionally) `http://localhost:5173`
+  - `SUPABASE_DB_URL` *(optional)* — direct Postgres connection string for psycopg2 fallback
+  - `RENDER_API_KEY` *(optional)* — for scripts that talk to Render's REST API
+  - `SUPABASE_JWT_SECRET` *(legacy / unused)* — kept for back-compat; safe to delete
+
+### `semco-kb-admin` (Static Site — the React admin UI)
+
+- **Root Directory:** `web`
+- **Build command:** `npm install && npm run build`
+- **Publish directory:** `dist`
+- **Env vars (must be prefixed `VITE_` to reach the browser bundle):**
+  - `VITE_SUPABASE_URL` — same as the API service
+  - `VITE_SUPABASE_ANON_KEY` — Supabase **anon public** key (NOT service role; RLS enforces access)
+  - `VITE_API_BASE_URL` — `https://semco-ai-kb.onrender.com`
+
+### Free-tier behavior to know about
+
+- The API sleeps after 15 min idle. First request after sleep takes 30–60s. The admin UI's CSV download surfaces this with a "Waking up the API…" button label.
+- Auto-deploy can occasionally lag or skip; if a push doesn't reflect within a few minutes, **Manual Deploy → Clear build cache & deploy** is the reliable workaround. Pip wheel caching has bitten us at least once when adding native deps like `cryptography`.
+- `GET /health` returns `git_commit` and `jwt_algorithms` fields specifically so deploy + dependency state can be verified remotely without dashboard access.
