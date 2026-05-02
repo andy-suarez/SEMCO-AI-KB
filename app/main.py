@@ -7,7 +7,7 @@ from jwt.algorithms import get_default_algorithms
 
 from app.config import get_settings
 from app.db import get_supabase
-from app.routers import export, kb, sync
+from app.routers import export, kb, sync, unanswered, webhooks
 
 app = FastAPI(title="SEMCO AI KB API")
 
@@ -23,6 +23,8 @@ app.add_middleware(
 app.include_router(kb.router)
 app.include_router(export.router)
 app.include_router(sync.router)
+app.include_router(unanswered.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/")

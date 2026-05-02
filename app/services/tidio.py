@@ -123,6 +123,26 @@ async def _upsert_one(
         )
 
 
+async def fetch_contact_messages(contact_id: str) -> dict:
+    """
+    Fetch all messages for a Tidio contact. Used by the webhook receiver
+    to enrich an unanswered-question event with the actual customer text.
+
+    Returns the raw response body: `{messages: [...], conversation_url, meta}`.
+    """
+    settings = get_settings()
+    headers = _headers()
+    base_url = settings.tidio_api_base_url.rstrip("/")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{base_url}/contacts/{contact_id}/messages",
+            headers=headers,
+            timeout=PER_REQUEST_TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def sync_entries_to_lyro(entries: Iterable[SyncEntry]) -> SyncResult:
     """Upsert every entry to Lyro concurrently. Returns aggregate counts + failures."""
     settings = get_settings()

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     lyro_client_secret: str = ""
     tidio_api_base_url: str = "https://api.tidio.com"
 
+    # Webhook signing secret from Tidio's webhook subscription setup.
+    # If empty, signature verification is skipped (dev-only mode).
+    tidio_webhook_secret: str = ""
+    tidio_webhook_max_age_seconds: int = 300
+
     class Config:
         env_file = ".env"
 
