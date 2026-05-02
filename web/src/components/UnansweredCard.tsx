@@ -19,7 +19,6 @@ type Props = {
   onActionComplete: () => void;
 };
 
-const arrayToString = (a: string[]) => a.join(", ");
 const stringToArray = (s: string) =>
   s
     .split(",")
