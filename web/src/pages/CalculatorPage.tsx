@@ -130,13 +130,7 @@ export function CalculatorPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Product Calculator</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick a finish and size to see the bill of materials. Your inputs save
-          automatically — close the tab and come back, your estimate's still here.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">Product Calculator</h1>
 
       <div className="grid gap-6 lg:grid-cols-[20rem,1fr]">
         <div className="rounded-lg border bg-background p-5">

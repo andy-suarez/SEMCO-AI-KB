@@ -107,12 +107,6 @@ export function CalculatorResults({ result, loading, error }: Props) {
           </dd>
         </dl>
       </section>
-
-      <p className="text-xs text-muted-foreground">
-        Wholesale pricing is a placeholder — populate{" "}
-        <code className="rounded bg-muted px-1">price_wholesale</code> in{" "}
-        <code className="rounded bg-muted px-1">product_yields</code> to enable.
-      </p>
     </div>
   );
 }

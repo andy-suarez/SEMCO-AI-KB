@@ -238,7 +238,7 @@ export function CalculatorForm({ value, options, onChange }: Props) {
               }}
               className="h-4 w-4"
             />
-            Brown Coat (separate base layer)
+            Brown Coat
           </label>
 
           {brownCoatEnabled && value.brown_coat && (
