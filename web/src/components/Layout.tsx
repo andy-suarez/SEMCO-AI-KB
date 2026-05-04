@@ -5,12 +5,15 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const sections = [
-  { to: "/kb", label: "KB Entries", icon: BookOpen },
-  { to: "/calculator", label: "Product Calculator", icon: Calculator },
+  { to: "/kb", label: "KB Entries", icon: BookOpen, key: "kb" },
+  { to: "/calculator", label: "Product Calculator", icon: Calculator, key: "calculator" },
 ] as const;
 
 export function Layout() {
-  const { user, signOut } = useAuth();
+  const { user, permissions, signOut } = useAuth();
+  const visibleSections = sections.filter(
+    (s) => s.key !== "calculator" || permissions.can_use_calculator
+  );
 
   return (
     <div className="flex min-h-screen bg-muted/30">
@@ -19,7 +22,7 @@ export function Layout() {
           SEMCO KB
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          {sections.map(({ to, label, icon: Icon }) => (
+          {visibleSections.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

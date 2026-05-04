@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.auth import AuthUser, verify_jwt
+from app.auth import AuthUser, require_permission, verify_jwt
 from app.db import get_supabase
 from app.services.tidio import SyncEntry, sync_entries_to_lyro
 
@@ -16,7 +16,7 @@ router = APIRouter(
 
 
 @router.post("/lyro")
-async def sync_lyro(user: AuthUser = Depends(verify_jwt)) -> dict:
+async def sync_lyro(user: AuthUser = Depends(require_permission("can_sync_lyro"))) -> dict:
     """
     Push every kb_entries row to Lyro via PUT /lyro/data-sources/website.
     Idempotent — Lyro dedupes by URL, so re-running updates existing

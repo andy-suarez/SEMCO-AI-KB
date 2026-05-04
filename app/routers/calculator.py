@@ -8,14 +8,16 @@ this gives us a "no restart needed" workflow when prices change.
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.auth import verify_jwt
+from app.auth import AuthUser, require_permission, verify_jwt
 from app.db import get_supabase
 from app.services.calculator import (
     CalcInput,
     CalcResult,
     build_catalog,
     calculate,
+    strip_prices,
 )
+from app.services.permissions import get_user_permissions
 
 router = APIRouter(
     prefix="/calculator",
@@ -25,8 +27,12 @@ router = APIRouter(
 
 
 @router.post("/estimate", response_model=CalcResult)
-def estimate(input: CalcInput) -> CalcResult:
-    """Run the calculator. Returns sections + summary."""
+def estimate(
+    input: CalcInput,
+    user: AuthUser = Depends(require_permission("can_use_calculator")),
+) -> CalcResult:
+    """Run the calculator. Returns sections + summary. Strips prices for
+    users who lack `can_see_prices`."""
     sb = get_supabase()
 
     yield_rows = sb.table("product_yields").select("*").execute().data or []
@@ -40,9 +46,14 @@ def estimate(input: CalcInput) -> CalcResult:
 
     catalog = build_catalog(yield_rows, config_rows)
     try:
-        return calculate(input, catalog)
+        result = calculate(input, catalog)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+    perms = get_user_permissions(user.user_id)
+    if not perms.can_see_prices:
+        result = strip_prices(result)
+    return result
 
 
 @router.get("/options")

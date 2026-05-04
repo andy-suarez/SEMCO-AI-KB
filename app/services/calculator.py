@@ -50,8 +50,8 @@ class LineItem(BaseModel):
     qty: int
     weight_lbs: Optional[float] = None
     line_weight_lbs: Optional[float] = None
-    unit_price_retail: float
-    line_total_retail: float
+    unit_price_retail: Optional[float] = None
+    line_total_retail: Optional[float] = None
     unit_price_wholesale: Optional[float] = None
     line_total_wholesale: Optional[float] = None
     notes: Optional[str] = None
@@ -65,9 +65,9 @@ class Section(BaseModel):
 class Summary(BaseModel):
     item_count: int
     total_weight_lbs: float
-    subtotal_retail: float
+    subtotal_retail: Optional[float] = None
     subtotal_wholesale: Optional[float] = None
-    cost_per_sqft_retail: float
+    cost_per_sqft_retail: Optional[float] = None
 
 
 class CalcResult(BaseModel):
@@ -75,6 +75,7 @@ class CalcResult(BaseModel):
     finish_group: str
     sections: List[Section]
     summary: Summary
+    prices_visible: bool = True
 
 
 # ---------- internal product-row shape -----------------------------------------
@@ -407,4 +408,48 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
             subtotal_wholesale=subtotal_wholesale,
             cost_per_sqft_retail=cost_per_sqft,
         ),
+        prices_visible=True,
+    )
+
+
+def strip_prices(result: CalcResult) -> CalcResult:
+    """Return a copy of `result` with every monetary field nulled out.
+
+    Used when the requester lacks `can_see_prices`. The user still sees
+    line items (qty + weight) and the item count + total weight, but no
+    prices, subtotals, or cost-per-sq-ft anywhere in the payload.
+    """
+    stripped_sections = [
+        Section(
+            name=s.name,
+            items=[
+                LineItem(
+                    product_name=it.product_name,
+                    sku_size=it.sku_size,
+                    qty=it.qty,
+                    weight_lbs=it.weight_lbs,
+                    line_weight_lbs=it.line_weight_lbs,
+                    unit_price_retail=None,
+                    line_total_retail=None,
+                    unit_price_wholesale=None,
+                    line_total_wholesale=None,
+                    notes=it.notes,
+                )
+                for it in s.items
+            ],
+        )
+        for s in result.sections
+    ]
+    return CalcResult(
+        input=result.input,
+        finish_group=result.finish_group,
+        sections=stripped_sections,
+        summary=Summary(
+            item_count=result.summary.item_count,
+            total_weight_lbs=result.summary.total_weight_lbs,
+            subtotal_retail=None,
+            subtotal_wholesale=None,
+            cost_per_sqft_retail=None,
+        ),
+        prices_visible=False,
     )

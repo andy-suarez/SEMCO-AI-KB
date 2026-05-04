@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Lock } from "lucide-react";
 import { CalculatorForm } from "@/components/CalculatorForm";
 import { CalculatorResults } from "@/components/CalculatorResults";
 import { useAuth } from "@/lib/auth";
@@ -23,7 +24,7 @@ const DEFAULT_INPUT: CalcInput = {
 const DEBOUNCE_MS = 300;
 
 export function CalculatorPage() {
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
   const storageKey = useMemo(
     () => (user?.id ? `calculator:state:${user.id}` : null),
     [user?.id]
@@ -127,6 +128,21 @@ export function CalculatorPage() {
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [input, restored]);
+
+  if (!permissions.can_use_calculator) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Product Calculator</h1>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border bg-background p-12 text-center">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            You don't have access to the Product Calculator. Contact an admin if you
+            need this enabled.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -2,7 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.auth import verify_jwt
+from app.auth import require_permission, verify_jwt
 from app.db import get_supabase
 from app.models.kb import KBEntryCreate, KBEntryUpdate, KBEntryRead, KBEntryList
 
@@ -82,7 +82,11 @@ def update_entry(entry_id: int, entry: KBEntryUpdate):
     return result.data[0]
 
 
-@router.delete("/{entry_id}", status_code=204)
+@router.delete(
+    "/{entry_id}",
+    status_code=204,
+    dependencies=[Depends(require_permission("can_delete_kb"))],
+)
 def delete_entry(entry_id: int):
     """Delete a KB entry."""
     sb = get_supabase()

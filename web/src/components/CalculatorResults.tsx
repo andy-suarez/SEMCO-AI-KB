@@ -19,6 +19,9 @@ const fmtMoney = (n: number) =>
 const fmtMoneyOrDash = (n: number | null | undefined) =>
   n == null ? "—" : fmtMoney(n);
 
+const fmtWeight = (n: number | null | undefined) =>
+  n == null ? "—" : `${n.toLocaleString()} lb`;
+
 type Props = {
   result: CalcResult | null;
   loading: boolean;
@@ -42,6 +45,8 @@ export function CalculatorResults({ result, loading, error }: Props) {
     );
   }
 
+  const showPrices = result.prices_visible;
+
   return (
     <div className={loading ? "space-y-6 opacity-60 transition-opacity" : "space-y-6"}>
       {result.sections.map((section) => (
@@ -55,8 +60,14 @@ export function CalculatorResults({ result, loading, error }: Props) {
                 <TableHead className="w-[40%]">Product</TableHead>
                 <TableHead className="w-24">Size</TableHead>
                 <TableHead className="w-16 text-right">Qty</TableHead>
-                <TableHead className="w-28 text-right">Retail</TableHead>
-                <TableHead className="w-28 text-right">Wholesale</TableHead>
+                {showPrices ? (
+                  <>
+                    <TableHead className="w-28 text-right">Retail</TableHead>
+                    <TableHead className="w-28 text-right">Wholesale</TableHead>
+                  </>
+                ) : (
+                  <TableHead className="w-28 text-right">Weight</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -65,12 +76,20 @@ export function CalculatorResults({ result, loading, error }: Props) {
                   <TableCell className="font-medium">{item.product_name}</TableCell>
                   <TableCell className="text-muted-foreground">{item.sku_size}</TableCell>
                   <TableCell className="text-right">{item.qty}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {fmtMoney(item.line_total_retail)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {fmtMoneyOrDash(item.line_total_wholesale)}
-                  </TableCell>
+                  {showPrices ? (
+                    <>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtMoneyOrDash(item.line_total_retail)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {fmtMoneyOrDash(item.line_total_wholesale)}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {fmtWeight(item.line_weight_lbs)}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -91,20 +110,24 @@ export function CalculatorResults({ result, loading, error }: Props) {
             {result.summary.total_weight_lbs.toLocaleString()} lb
           </dd>
 
-          <dt className="text-muted-foreground">Subtotal (Retail)</dt>
-          <dd className="text-right font-medium tabular-nums">
-            {fmtMoney(result.summary.subtotal_retail)}
-          </dd>
+          {showPrices && (
+            <>
+              <dt className="text-muted-foreground">Subtotal (Retail)</dt>
+              <dd className="text-right font-medium tabular-nums">
+                {fmtMoneyOrDash(result.summary.subtotal_retail)}
+              </dd>
 
-          <dt className="text-muted-foreground">Subtotal (Wholesale)</dt>
-          <dd className="text-right text-muted-foreground tabular-nums">
-            {fmtMoneyOrDash(result.summary.subtotal_wholesale)}
-          </dd>
+              <dt className="text-muted-foreground">Subtotal (Wholesale)</dt>
+              <dd className="text-right text-muted-foreground tabular-nums">
+                {fmtMoneyOrDash(result.summary.subtotal_wholesale)}
+              </dd>
 
-          <dt className="text-muted-foreground">Cost per sq ft (Retail)</dt>
-          <dd className="text-right tabular-nums">
-            {fmtMoney(result.summary.cost_per_sqft_retail)}
-          </dd>
+              <dt className="text-muted-foreground">Cost per sq ft (Retail)</dt>
+              <dd className="text-right tabular-nums">
+                {fmtMoneyOrDash(result.summary.cost_per_sqft_retail)}
+              </dd>
+            </>
+          )}
         </dl>
       </section>
     </div>

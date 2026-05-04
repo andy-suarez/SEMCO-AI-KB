@@ -7,7 +7,7 @@ endpoint; we fetch them on first use and PyJWT caches them for an hour.
 
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
+from typing import Callable, Optional
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -15,6 +15,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 
 from app.config import get_settings
+from app.services.permissions import get_user_permissions
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
@@ -67,3 +68,24 @@ def verify_jwt(
         email=payload.get("email"),
         role=payload.get("role", "authenticated"),
     )
+
+
+def require_permission(perm_name: str) -> Callable[[AuthUser], AuthUser]:
+    """
+    FastAPI dependency factory that verifies the JWT then checks a
+    specific permission flag. Raises 403 if the user lacks it.
+
+    Usage:
+        @router.delete("/...", dependencies=[Depends(require_permission("can_delete_kb"))])
+    """
+
+    def _check(user: AuthUser = Depends(verify_jwt)) -> AuthUser:
+        permissions = get_user_permissions(user.user_id).to_dict()
+        if not permissions.get(perm_name, False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Permission denied: {perm_name}",
+            )
+        return user
+
+    return _check

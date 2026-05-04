@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth";
 import {
   Table,
   TableBody,
@@ -20,6 +21,7 @@ import { listKBEntries, listKBFacets, type KBEntry } from "@/lib/kb";
 const PAGE_SIZE = 50;
 
 export function KBEntriesPage() {
+  const { permissions } = useAuth();
   const [entries, setEntries] = useState<KBEntry[]>([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -228,14 +230,16 @@ export function KBEntriesPage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeletingEntry(entry)}
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {permissions.can_delete_kb && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeletingEntry(entry)}
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

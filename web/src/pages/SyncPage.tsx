@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { listKBEntries } from "@/lib/kb";
 import { getLastLyroSync, type SyncLogEntry, type SyncResponse } from "@/lib/sync";
 
@@ -21,6 +22,7 @@ type DownloadStatus = "idle" | "downloading" | "waking";
 type SyncStatus = "idle" | "syncing" | "waking";
 
 export function SyncPage() {
+  const { permissions } = useAuth();
   const [count, setCount] = useState<number | null>(null);
   const [lastDownload, setLastDownload] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<SyncLogEntry | null>(null);
@@ -160,32 +162,34 @@ export function SyncPage() {
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-semibold tracking-tight">Sync to Lyro</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Push to Lyro</CardTitle>
-          <CardDescription>
-            {count === null
-              ? "Loading…"
-              : `Upserts ${count.toLocaleString()} ${count === 1 ? "entry" : "entries"} to Lyro via the Tidio API.`}
-            {lastSync && (
-              <>
-                {" "}
-                Last sync: <strong>{describeSync(lastSync)}</strong>
-                {lastSync.triggered_by ? ` by ${lastSync.triggered_by}` : ""}.
-              </>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={handlePushToLyro}
-            disabled={syncStatus !== "idle" || count === null}
-          >
-            <CloudUpload className="mr-2 h-4 w-4" />
-            {pushLabel}
-          </Button>
-        </CardContent>
-      </Card>
+      {permissions.can_sync_lyro && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Push to Lyro</CardTitle>
+            <CardDescription>
+              {count === null
+                ? "Loading…"
+                : `Upserts ${count.toLocaleString()} ${count === 1 ? "entry" : "entries"} to Lyro via the Tidio API.`}
+              {lastSync && (
+                <>
+                  {" "}
+                  Last sync: <strong>{describeSync(lastSync)}</strong>
+                  {lastSync.triggered_by ? ` by ${lastSync.triggered_by}` : ""}.
+                </>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handlePushToLyro}
+              disabled={syncStatus !== "idle" || count === null}
+            >
+              <CloudUpload className="mr-2 h-4 w-4" />
+              {pushLabel}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

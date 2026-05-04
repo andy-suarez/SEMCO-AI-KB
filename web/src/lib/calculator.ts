@@ -32,8 +32,8 @@ export type LineItem = {
   qty: number;
   weight_lbs: number | null;
   line_weight_lbs: number | null;
-  unit_price_retail: number;
-  line_total_retail: number;
+  unit_price_retail: number | null;
+  line_total_retail: number | null;
   unit_price_wholesale: number | null;
   line_total_wholesale: number | null;
   notes: string | null;
@@ -47,9 +47,9 @@ export type Section = {
 export type Summary = {
   item_count: number;
   total_weight_lbs: number;
-  subtotal_retail: number;
+  subtotal_retail: number | null;
   subtotal_wholesale: number | null;
-  cost_per_sqft_retail: number;
+  cost_per_sqft_retail: number | null;
 };
 
 export type CalcResult = {
@@ -57,6 +57,7 @@ export type CalcResult = {
   finish_group: string;
   sections: Section[];
   summary: Summary;
+  prices_visible: boolean;
 };
 
 export type Option = { value: string; label: string };
