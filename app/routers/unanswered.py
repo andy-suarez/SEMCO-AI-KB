@@ -21,6 +21,15 @@ router = APIRouter(
 )
 
 
+VALID_DISPOSITIONS = {
+    "test_entry",
+    "not_semco_related",
+    "inappropriate_or_unsafe",
+    "duplicate_entry",
+    "too_ambiguous",
+}
+
+
 class PromoteRequest(BaseModel):
     """Payload for promoting an unanswered question to a KB entry."""
 
@@ -30,6 +39,12 @@ class PromoteRequest(BaseModel):
     products: List[str] = Field(default_factory=list)
     substrates: List[str] = Field(default_factory=list)
     source: str = "Tidio Unanswered"
+
+
+class DismissRequest(BaseModel):
+    """Payload for dismissing an unanswered question with a reason."""
+
+    disposition: str = Field(..., min_length=1)
 
 
 def _utcnow_iso() -> str:
@@ -95,9 +110,16 @@ def promote_unanswered(
 @router.post("/{unanswered_id}/dismiss")
 def dismiss_unanswered(
     unanswered_id: int,
+    body: DismissRequest,
     user: AuthUser = Depends(verify_jwt),
 ) -> dict:
-    """Mark a pending unanswered question as dismissed (no KB write)."""
+    """Mark a pending unanswered question as dismissed with a disposition reason."""
+    if body.disposition not in VALID_DISPOSITIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid disposition. Must be one of: {sorted(VALID_DISPOSITIONS)}",
+        )
+
     sb = get_supabase()
 
     existing = (
@@ -118,9 +140,14 @@ def dismiss_unanswered(
     sb.table("unanswered_questions").update(
         {
             "status": "dismissed",
+            "disposition": body.disposition,
             "handled_at": _utcnow_iso(),
             "handled_by": user.email,
         }
     ).eq("id", unanswered_id).execute()
 
-    return {"unanswered_id": unanswered_id, "status": "dismissed"}
+    return {
+        "unanswered_id": unanswered_id,
+        "status": "dismissed",
+        "disposition": body.disposition,
+    }

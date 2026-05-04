@@ -7,9 +7,32 @@ export type CustomerMessage = {
   created_at: string;
 };
 
+export type Disposition =
+  | "test_entry"
+  | "not_semco_related"
+  | "inappropriate_or_unsafe"
+  | "duplicate_entry"
+  | "too_ambiguous";
+
+export const DISPOSITION_LABELS: Record<Disposition, string> = {
+  test_entry: "Test entry",
+  not_semco_related: "Not SEMCO related",
+  inappropriate_or_unsafe: "Inappropriate or unsafe request",
+  duplicate_entry: "Duplicate entry",
+  too_ambiguous: "Too ambiguous / cannot answer",
+};
+
+export const DISPOSITION_OPTIONS: Disposition[] = [
+  "test_entry",
+  "not_semco_related",
+  "inappropriate_or_unsafe",
+  "duplicate_entry",
+  "too_ambiguous",
+];
+
 export type UnansweredQuestion = {
   id: number;
-  tidio_contact_id: string;
+  tidio_contact_id: string | null;
   tidio_event_received_at: string;
   tidio_solved_at: string | null;
   reason: string | null;
@@ -18,6 +41,7 @@ export type UnansweredQuestion = {
   customer_messages: CustomerMessage[];
   status: "pending" | "promoted" | "dismissed";
   promoted_kb_entry_id: number | null;
+  disposition: Disposition | null;
   draft_answer: string | null;
   draft_category: string | null;
   draft_products: string[];
@@ -76,9 +100,13 @@ export async function promoteUnanswered(
   }
 }
 
-export async function dismissUnanswered(unansweredId: number): Promise<void> {
+export async function dismissUnanswered(
+  unansweredId: number,
+  disposition: Disposition
+): Promise<void> {
   const res = await apiFetch(`/unanswered/${unansweredId}/dismiss`, {
     method: "POST",
+    body: JSON.stringify({ disposition }),
   });
   if (!res.ok) {
     const text = await res.text();

@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { DismissUnansweredDialog } from "@/components/DismissUnansweredDialog";
 import {
-  dismissUnanswered,
+  DISPOSITION_LABELS,
   promoteUnanswered,
   type UnansweredQuestion,
 } from "@/lib/unanswered";
@@ -39,6 +40,7 @@ export function UnansweredCard({ item, categories, onActionComplete }: Props) {
   const [productsText, setProductsText] = useState("");
   const [substratesText, setSubstratesText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [dismissOpen, setDismissOpen] = useState(false);
 
   // Pre-fill the question with the customer's last message when first expanded.
   useEffect(() => {
@@ -72,21 +74,6 @@ export function UnansweredCard({ item, categories, onActionComplete }: Props) {
     }
   }
 
-  async function handleDismiss() {
-    if (!confirm("Dismiss this unanswered question? It won't be added to the KB.")) {
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await dismissUnanswered(item.id);
-      toast.success("Dismissed");
-      onActionComplete();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to dismiss");
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   return (
     <div className="rounded-lg border bg-background">
@@ -112,6 +99,11 @@ export function UnansweredCard({ item, categories, onActionComplete }: Props) {
             {item.reason && (
               <Badge variant="outline">
                 {REASON_LABELS[item.reason] ?? item.reason}
+              </Badge>
+            )}
+            {item.disposition && (
+              <Badge variant="secondary">
+                {DISPOSITION_LABELS[item.disposition]}
               </Badge>
             )}
             <span>{item.customer_messages.length} customer message
@@ -222,7 +214,7 @@ export function UnansweredCard({ item, categories, onActionComplete }: Props) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleDismiss}
+                onClick={() => setDismissOpen(true)}
                 disabled={submitting}
               >
                 Dismiss
@@ -240,6 +232,12 @@ export function UnansweredCard({ item, categories, onActionComplete }: Props) {
           </p>
         </div>
       )}
+
+      <DismissUnansweredDialog
+        unansweredId={dismissOpen ? item.id : null}
+        onOpenChange={(open) => setDismissOpen(open)}
+        onDismissed={onActionComplete}
+      />
     </div>
   );
 }
