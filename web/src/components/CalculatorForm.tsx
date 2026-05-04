@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import type { CalcInput, Options } from "@/lib/calculator";
+import { THICKNESS_OPTIONS, type BrownCoatInput, type CalcInput, type Options } from "@/lib/calculator";
 
 type Props = {
   value: CalcInput;
@@ -33,6 +33,12 @@ export function CalculatorForm({ value, options, onChange }: Props) {
     onChange({ ...value, [k]: v });
 
   const fabricEnabled = value.fabric_size !== null;
+  const brownCoatEnabled = value.brown_coat !== null;
+
+  const setBrownCoat = (patch: Partial<BrownCoatInput>) => {
+    const cur: BrownCoatInput = value.brown_coat ?? { length_ft: 0, width_ft: 0, thickness_in: 0.125 };
+    onChange({ ...value, brown_coat: { ...cur, ...patch } });
+  };
 
   // First fabric size as default when enabling the checkbox.
   const defaultFabricSize = useMemo(
@@ -209,6 +215,83 @@ export function CalculatorForm({ value, options, onChange }: Props) {
                     set("fabric_qty", Number.isFinite(n) && n > 0 ? n : 0);
                   }}
                 />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Brown Coat */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={brownCoatEnabled}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onChange({
+                    ...value,
+                    brown_coat: { length_ft: 0, width_ft: 0, thickness_in: 0.125 },
+                  });
+                } else {
+                  onChange({ ...value, brown_coat: null });
+                }
+              }}
+              className="h-4 w-4"
+            />
+            Brown Coat (separate base layer)
+          </label>
+
+          {brownCoatEnabled && value.brown_coat && (
+            <div className="ml-6 space-y-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="bc-length" className="text-xs">
+                    Length (ft)
+                  </Label>
+                  <Input
+                    id="bc-length"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={value.brown_coat.length_ft || ""}
+                    onChange={(e) => {
+                      const n = parseFloat(e.target.value);
+                      setBrownCoat({ length_ft: Number.isFinite(n) && n > 0 ? n : 0 });
+                    }}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="bc-width" className="text-xs">
+                    Width (ft)
+                  </Label>
+                  <Input
+                    id="bc-width"
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={value.brown_coat.width_ft || ""}
+                    onChange={(e) => {
+                      const n = parseFloat(e.target.value);
+                      setBrownCoat({ width_ft: Number.isFinite(n) && n > 0 ? n : 0 });
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="bc-thickness" className="text-xs">
+                  Thickness
+                </Label>
+                <Select
+                  id="bc-thickness"
+                  value={String(value.brown_coat.thickness_in)}
+                  onChange={(e) => setBrownCoat({ thickness_in: parseFloat(e.target.value) })}
+                >
+                  {THICKNESS_OPTIONS.map((t) => (
+                    <option key={t.decimal} value={t.decimal}>
+                      {t.label}
+                    </option>
+                  ))}
+                </Select>
               </div>
             </div>
           )}

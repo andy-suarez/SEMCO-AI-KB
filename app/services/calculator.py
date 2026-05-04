@@ -26,13 +26,22 @@ SealerKey = str   # 'matte_sealer' | 'titan_shield' | 'satin_stone' | 'natural_s
 FabricSize = str  # '6x75' | '29.5x100'
 
 
+class BrownCoatInput(BaseModel):
+    length_ft: float = Field(..., gt=0)
+    width_ft: float = Field(..., gt=0)
+    thickness_in: float = Field(..., gt=0, description="Decimal inches (e.g. 0.125 for 1/8\")")
+
+
 class CalcInput(BaseModel):
     sqft: float = Field(..., gt=0, description="Total project square footage")
-    finish_type: FinishType = Field(..., description="corsa, polished, vellum, solid, or grain")
+    finish_type: FinishType = Field(..., description="corsa_polished, vellum_solid, or grain")
     sealer: SealerKey = Field(default="none", description="Sealer choice or 'none'")
     use_slm: bool = Field(default=False, description="Apply SEMCO Liquid Membrane")
     fabric_size: Optional[FabricSize] = Field(default=None)
     fabric_qty: int = Field(default=0, ge=0)
+    brown_coat: Optional[BrownCoatInput] = Field(
+        default=None, description="If present, adds a Brown Coat section to the estimate"
+    )
 
 
 class LineItem(BaseModel):
@@ -234,6 +243,60 @@ def _packed_lines(
     return items
 
 
+def _brown_coat_section(bc: BrownCoatInput, catalog: Catalog) -> Optional[Section]:
+    """
+    Compute the Brown Coat section.
+
+    Math (matches SEMCO's Brown Coat Calculator tab):
+      * Volume in cubic inches = (L_ft × 12) × (W_ft × 12) × T_in
+      * Displacement gallons   = volume / 231
+      * Batches                = floor(displacement / 5)   # 5-gal mixture per batch
+      * Per batch:
+          - 1 × 50 lb Stone bag
+          - 2 GL Liquid (packed into 5 GL / 1 GL)
+          - 1/12 of a 20 lb Additive bag (ceil(batches/12) total bags)
+    """
+    length_in = bc.length_ft * 12.0
+    width_in = bc.width_ft * 12.0
+    volume_cubic_in = length_in * width_in * bc.thickness_in
+    displacement_gal = volume_cubic_in / 231.0
+    batches = int(displacement_gal // 5)
+
+    if batches <= 0:
+        return None
+
+    # Stone (single 50 lb SKU lives at finish_group='all')
+    stone = catalog.yields_by_key.get(_key("stone", "all", "small"))
+
+    # Reuse Vellum/Solid Liquid rows for brown coat (price is finish-independent).
+    liquid_small = catalog.yields_by_key.get(_key("liquid", "vellum_solid", "small"))
+    liquid_large = catalog.yields_by_key.get(_key("liquid", "vellum_solid", "large"))
+
+    # Additive — only used in brown coat
+    additive = catalog.yields_by_key.get(_key("brown_coat_additive", "brown_coat", "small"))
+
+    items: List[LineItem] = []
+    if stone:
+        items.append(_line_item(stone, batches))
+
+    liquid_gal = batches * 2
+    if liquid_large and liquid_small and liquid_gal > 0:
+        large_qty, small_qty = _pack_for_unit_count(liquid_gal, liquid_small, liquid_large, units_per_large=5)
+        if large_qty > 0:
+            items.append(_line_item(liquid_large, large_qty))
+        if small_qty > 0:
+            items.append(_line_item(liquid_small, small_qty))
+
+    if additive:
+        additive_bags = math.ceil(batches / 12)
+        if additive_bags > 0:
+            items.append(_line_item(additive, additive_bags))
+
+    if not items:
+        return None
+    return Section(name="Brown Coat", items=items)
+
+
 def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
     """Run the full calculation and return a CalcResult."""
     if input.finish_type not in catalog.finish_to_group:
@@ -307,6 +370,12 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
         sealer_items = _packed_lines(sqft, catalog, "all", input.sealer)
         if sealer_items:
             sections.append(Section(name="Sealer", items=sealer_items))
+
+    # ---- Brown Coat (optional, separate input shape) ------------------------
+    if input.brown_coat is not None:
+        bc_section = _brown_coat_section(input.brown_coat, catalog)
+        if bc_section is not None:
+            sections.append(bc_section)
 
     # ---- Summary ------------------------------------------------------------
     item_count = sum(it.qty for s in sections for it in s.items)

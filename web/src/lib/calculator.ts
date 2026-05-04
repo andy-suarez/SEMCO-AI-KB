@@ -1,5 +1,11 @@
 import { apiFetch } from "@/lib/api";
 
+export type BrownCoatInput = {
+  length_ft: number;
+  width_ft: number;
+  thickness_in: number;
+};
+
 export type CalcInput = {
   sqft: number;
   finish_type: string;
@@ -7,7 +13,18 @@ export type CalcInput = {
   use_slm: boolean;
   fabric_size: string | null;
   fabric_qty: number;
+  brown_coat: BrownCoatInput | null;
 };
+
+export const THICKNESS_OPTIONS: { decimal: number; label: string }[] = [
+  { decimal: 0.125, label: '1/8"' },
+  { decimal: 0.1875, label: '3/16"' },
+  { decimal: 0.25, label: '1/4"' },
+  { decimal: 0.375, label: '3/8"' },
+  { decimal: 0.5, label: '1/2"' },
+  { decimal: 0.625, label: '5/8"' },
+  { decimal: 0.75, label: '3/4"' },
+];
 
 export type LineItem = {
   product_name: string;

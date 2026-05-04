@@ -12,11 +12,12 @@ import {
 
 const DEFAULT_INPUT: CalcInput = {
   sqft: 0,
-  finish_type: "grain",
+  finish_type: "vellum_solid",
   sealer: "none",
   use_slm: false,
   fabric_size: null,
   fabric_qty: 0,
+  brown_coat: null,
 };
 
 const DEBOUNCE_MS = 300;
@@ -88,12 +89,29 @@ export function CalculatorPage() {
     }
     if (!input.finish_type) return;
 
+    // Brown coat needs all 3 sub-fields to be valid; skip otherwise to avoid 422s.
+    if (input.brown_coat) {
+      const bc = input.brown_coat;
+      if (!bc.length_ft || !bc.width_ft || !bc.thickness_in) {
+        // hold off on the API call until the user fills it in
+      }
+    }
+
+    // Build a payload that strips out brown_coat if it isn't fully populated;
+    // the backend rejects partial brown coat with 422 otherwise.
+    const payload: CalcInput = (() => {
+      if (!input.brown_coat) return input;
+      const bc = input.brown_coat;
+      const ready = bc.length_ft > 0 && bc.width_ft > 0 && bc.thickness_in > 0;
+      return ready ? input : { ...input, brown_coat: null };
+    })();
+
     const myReqId = ++reqIdRef.current;
     const t = window.setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
-        const r = await fetchEstimate(input);
+        const r = await fetchEstimate(payload);
         if (reqIdRef.current === myReqId) {
           setResult(r);
         }
