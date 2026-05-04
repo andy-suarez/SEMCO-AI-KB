@@ -166,7 +166,7 @@ export function SyncPage() {
           <CardDescription>
             {count === null
               ? "Loading…"
-              : `Upserts ${count.toLocaleString()} ${count === 1 ? "entry" : "entries"} to Lyro via the Tidio API. Idempotent — safe to run multiple times.`}
+              : `Upserts ${count.toLocaleString()} ${count === 1 ? "entry" : "entries"} to Lyro via the Tidio API.`}
             {lastSync && (
               <>
                 {" "}
@@ -191,8 +191,7 @@ export function SyncPage() {
         <CardHeader>
           <CardTitle>Download CSV (manual fallback)</CardTitle>
           <CardDescription>
-            Use this if the API push fails or you need a copy of the KB for
-            another tool. Upload manually to Tidio if needed.
+            Use this if the API push fails.
             {lastDownload && ` Last download: ${formatDate(lastDownload)}.`}
           </CardDescription>
         </CardHeader>
