@@ -5,6 +5,7 @@ export type Permissions = {
   can_sync_lyro: boolean;
   can_use_calculator: boolean;
   can_see_prices: boolean;
+  is_admin: boolean;
 };
 
 export const DEFAULT_PERMISSIONS: Permissions = {
@@ -12,6 +13,7 @@ export const DEFAULT_PERMISSIONS: Permissions = {
   can_sync_lyro: false,
   can_use_calculator: true,
   can_see_prices: true,
+  is_admin: false,
 };
 
 export async function fetchMyPermissions(): Promise<Permissions> {
@@ -26,5 +28,6 @@ export async function fetchMyPermissions(): Promise<Permissions> {
     can_sync_lyro: !!body.can_sync_lyro,
     can_use_calculator: body.can_use_calculator ?? true,
     can_see_prices: body.can_see_prices ?? true,
+    is_admin: !!body.is_admin,
   };
 }

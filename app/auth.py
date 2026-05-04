@@ -89,3 +89,14 @@ def require_permission(perm_name: str) -> Callable[[AuthUser], AuthUser]:
         return user
 
     return _check
+
+
+def require_admin(user: AuthUser = Depends(verify_jwt)) -> AuthUser:
+    """Shortcut for require_permission('is_admin'). Raises 403 if not admin."""
+    perms = get_user_permissions(user.user_id)
+    if not perms.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user

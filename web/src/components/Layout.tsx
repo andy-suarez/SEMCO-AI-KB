@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { BookOpen, Calculator, LogOut } from "lucide-react";
+import { BookOpen, Calculator, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -7,13 +7,16 @@ import { cn } from "@/lib/utils";
 const sections = [
   { to: "/kb", label: "KB Entries", icon: BookOpen, key: "kb" },
   { to: "/calculator", label: "Product Calculator", icon: Calculator, key: "calculator" },
+  { to: "/users", label: "Users", icon: Users, key: "users" },
 ] as const;
 
 export function Layout() {
   const { user, permissions, signOut } = useAuth();
-  const visibleSections = sections.filter(
-    (s) => s.key !== "calculator" || permissions.can_use_calculator
-  );
+  const visibleSections = sections.filter((s) => {
+    if (s.key === "calculator") return permissions.can_use_calculator;
+    if (s.key === "users") return permissions.is_admin;
+    return true;
+  });
 
   return (
     <div className="flex min-h-screen bg-muted/30">

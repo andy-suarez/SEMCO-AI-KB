@@ -17,6 +17,7 @@ class UserPermissions:
     can_sync_lyro: bool = False
     can_use_calculator: bool = True
     can_see_prices: bool = True
+    is_admin: bool = False
 
     def to_dict(self) -> "dict[str, bool]":
         return {
@@ -24,6 +25,7 @@ class UserPermissions:
             "can_sync_lyro": self.can_sync_lyro,
             "can_use_calculator": self.can_use_calculator,
             "can_see_prices": self.can_see_prices,
+            "is_admin": self.is_admin,
         }
 
 
@@ -53,4 +55,5 @@ def get_user_permissions(user_id: str) -> UserPermissions:
         can_sync_lyro=bool(row.get("can_sync_lyro", False)),
         can_use_calculator=bool(row.get("can_use_calculator", True)),
         can_see_prices=bool(row.get("can_see_prices", True)),
+        is_admin=bool(row.get("is_admin", False)),
     )

@@ -9,6 +9,7 @@ import { KBEntriesPage } from "@/pages/KBEntriesPage";
 import { UnansweredPage } from "@/pages/UnansweredPage";
 import { SyncPage } from "@/pages/SyncPage";
 import { CalculatorPage } from "@/pages/CalculatorPage";
+import { UsersPage } from "@/pages/UsersPage";
 
 export function App() {
   return (
@@ -30,6 +31,9 @@ export function App() {
 
               {/* Calculator section: no sub-tabs yet, room to grow */}
               <Route path="calculator" element={<CalculatorPage />} />
+
+              {/* Admin: user permission management (gated client-side by Layout, server-side by require_admin) */}
+              <Route path="users" element={<UsersPage />} />
 
               {/* Back-compat redirects from the old flat URLs */}
               <Route path="unanswered" element={<Navigate to="/kb/unanswered" replace />} />
