@@ -177,12 +177,6 @@ export function UsersPage() {
           </TableBody>
         </Table>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Changes save instantly. To add new users, provision them in
-        Supabase Dashboard → Authentication → Users; they'll appear here
-        automatically with default permissions.
-      </p>
     </div>
   );
 }
