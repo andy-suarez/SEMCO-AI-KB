@@ -119,12 +119,14 @@ async def flow_unanswered(
     if recent.data:
         return {"ok": True, "deduped": True}
 
-    # Pull the conversation. If this fails (Tidio API down, contact
-    # gone, etc.), still record an event with empty messages so the
-    # team sees that something happened — they can click through to
-    # Tidio for full context.
+    # Pull the conversation. If this fails (Tidio's Conversations API
+    # is paywalled on some tiers, returning 403), still record the
+    # event with metadata only so the team is alerted and can click
+    # through to Tidio's panel for content.
     conversation_url = None
     customer_messages: "list[dict]" = []
+    fetch_succeeded = False
+    fetch_error: str = ""
     try:
         msgs = await fetch_contact_messages(contact_uuid)
         conversation_url = msgs.get("conversation_url")
@@ -137,21 +139,29 @@ async def flow_unanswered(
                         "created_at": m.get("created_at"),
                     }
                 )
+        fetch_succeeded = True
     except Exception as e:
-        log.exception(
-            "fetch_contact_messages failed for %s: %s", contact_uuid, e
+        fetch_error = str(e)[:200]
+        log.warning(
+            "fetch_contact_messages failed for %s — recording metadata-only "
+            "event so the team is alerted: %s",
+            contact_uuid,
+            fetch_error,
         )
 
-    # If there are zero customer messages, there's nothing for the team
-    # to triage — skip the insert. Return 200 so Tidio doesn't retry.
-    if not customer_messages:
+    # Genuine empty conversation (fetch worked, contact has no messages)
+    # is the one case we skip. If the fetch FAILED, we still record so
+    # the team can investigate via the Tidio panel.
+    if fetch_succeeded and not customer_messages:
         return {
             "ok": True,
             "skipped": True,
             "reason": "no_customer_messages",
         }
 
-    latest_message_created_at = customer_messages[-1].get("created_at")
+    latest_message_created_at = (
+        customer_messages[-1].get("created_at") if customer_messages else None
+    )
 
     try:
         sb.table("unanswered_questions").insert(
