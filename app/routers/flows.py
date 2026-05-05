@@ -13,6 +13,7 @@ configure the Flow's API call to send the same value via Tidio's
 """
 
 import logging
+import uuid as _uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -53,6 +54,25 @@ async def flow_unanswered(
     email = body.get("email") or None
     if not contact_uuid:
         raise HTTPException(status_code=400, detail="contact_uuid required")
+
+    # Reject non-UUID inputs up front. Most common cause: the Tidio Flow
+    # body has the literal string "contact_uuid" instead of the
+    # {contact_uuid} variable reference.
+    try:
+        _uuid.UUID(str(contact_uuid))
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"contact_uuid must be a valid UUID, got '{contact_uuid}'. "
+                "In your Tidio Flow body, use the {contact_uuid} variable "
+                "(via the {} picker), not the literal string."
+            ),
+        )
+
+    # Don't let stray literal placeholders end up in the email column.
+    if email == "email":
+        email = None
 
     # Soft dedupe: skip if we just inserted a row for this contact.
     sb = get_supabase()
