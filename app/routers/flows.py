@@ -55,23 +55,39 @@ async def flow_unanswered(
     if not contact_uuid:
         raise HTTPException(status_code=400, detail="contact_uuid required")
 
-    # Reject non-UUID inputs up front. Most common cause: the Tidio Flow
-    # body has the literal string "contact_uuid" instead of the
-    # {contact_uuid} variable reference.
+    # Tidio's "Test request" button doesn't substitute Flow variables,
+    # so it sends the literal "{contact_uuid}" placeholder instead of a
+    # real UUID. Recognize that and return a friendly 200 so the test
+    # passes — the user's configuration IS correct; real flow runs will
+    # substitute properly.
+    placeholder_pattern = isinstance(contact_uuid, str) and (
+        contact_uuid.strip().startswith("{") and contact_uuid.strip().endswith("}")
+    )
+    if placeholder_pattern:
+        return {
+            "ok": True,
+            "test_mode": True,
+            "note": (
+                "Tidio's Test button doesn't substitute variables. "
+                "Your config is reaching the backend correctly — to verify "
+                "end-to-end, trigger the Flow against a real conversation."
+            ),
+        }
+
+    # Reject non-UUID inputs up front. (Past this point, the value should
+    # be a real UUID from a real Flow execution.)
     try:
         _uuid.UUID(str(contact_uuid))
     except (ValueError, TypeError):
         raise HTTPException(
             status_code=400,
             detail=(
-                f"contact_uuid must be a valid UUID, got '{contact_uuid}'. "
-                "In your Tidio Flow body, use the {contact_uuid} variable "
-                "(via the {} picker), not the literal string."
+                f"contact_uuid must be a valid UUID, got '{contact_uuid}'."
             ),
         )
 
     # Don't let stray literal placeholders end up in the email column.
-    if email == "email":
+    if isinstance(email, str) and email.strip().startswith("{") and email.strip().endswith("}"):
         email = None
 
     # Soft dedupe: skip if we just inserted a row for this contact.
