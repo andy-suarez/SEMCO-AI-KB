@@ -7,7 +7,17 @@ from jwt.algorithms import get_default_algorithms
 
 from app.config import get_settings
 from app.db import get_supabase
-from app.routers import admin, calculator, export, kb, me, sync, unanswered, webhooks
+from app.routers import (
+    admin,
+    calculator,
+    export,
+    flows,
+    kb,
+    me,
+    sync,
+    unanswered,
+    webhooks,
+)
 
 app = FastAPI(title="SEMCO AI KB API")
 
@@ -28,6 +38,7 @@ app.include_router(webhooks.router)
 app.include_router(calculator.router)
 app.include_router(me.router)
 app.include_router(admin.router)
+app.include_router(flows.router)
 
 
 @app.get("/")

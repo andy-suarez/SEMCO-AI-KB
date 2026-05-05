@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     tidio_webhook_secret: str = ""
     tidio_webhook_max_age_seconds: int = 300
 
+    # Shared secret for the Tidio Flow → /flows/unanswered HTTP request.
+    # Tidio stores this as an "API key" in the Flow editor and injects
+    # it into a custom header. We verify the header on each request.
+    tidio_flow_token: str = ""
+
     class Config:
         env_file = ".env"
 
