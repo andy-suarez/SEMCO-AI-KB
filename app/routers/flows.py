@@ -74,17 +74,30 @@ async def flow_unanswered(
             ),
         }
 
-    # Reject non-UUID inputs up front. (Past this point, the value should
-    # be a real UUID from a real Flow execution.)
+    # Past this point we expect a real UUID from a real Flow execution.
+    # If the value isn't a UUID, it's most likely Tidio's Test button
+    # substituting random sample data ("john" for {name}, etc.). Pass
+    # those through as test_mode so the user can finish configuring the
+    # Flow, but log a warning — real Flow runs sending non-UUIDs mean
+    # the wrong variable is wired into the contact_uuid slot.
     try:
         _uuid.UUID(str(contact_uuid))
     except (ValueError, TypeError):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"contact_uuid must be a valid UUID, got '{contact_uuid}'."
-            ),
+        log.warning(
+            "Non-UUID contact_uuid received: %r. If this is a production "
+            "Flow, fix the contact_uuid slot to use the {contact_uuid} "
+            "variable from Tidio's variable picker.",
+            contact_uuid,
         )
+        return {
+            "ok": True,
+            "test_mode": True,
+            "note": (
+                f"Received non-UUID '{contact_uuid}'. Real Flow runs send "
+                "valid UUIDs; if production traffic ever hits this branch, "
+                "check Render logs."
+            ),
+        }
 
     # Don't let stray literal placeholders end up in the email column.
     if isinstance(email, str) and email.strip().startswith("{") and email.strip().endswith("}"):
