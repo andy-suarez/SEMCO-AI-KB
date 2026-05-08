@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 import { countPendingUnanswered } from "@/lib/unanswered";
 import { cn } from "@/lib/utils";
 
-const tabs = [
+type Tab = {
+  to: string;
+  label: string;
+  end: boolean;
+  key: string;
+  adminOnly?: boolean;
+};
+
+const tabs: readonly Tab[] = [
   { to: "/kb", label: "Entries", end: true, key: "entries" },
   { to: "/kb/unanswered", label: "Unanswered", end: false, key: "unanswered" },
+  { to: "/kb/changelog", label: "Changelog", end: false, key: "changelog", adminOnly: true },
   { to: "/kb/sync", label: "Sync to Lyro", end: false, key: "sync" },
-] as const;
+];
 
 export function KBSectionLayout() {
   const location = useLocation();
+  const { permissions } = useAuth();
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
   // Refresh badge on route change so promoting/dismissing reflects immediately.
@@ -24,28 +35,45 @@ export function KBSectionLayout() {
     <div className="space-y-6">
       <div className="border-b">
         <nav className="-mb-px flex gap-2">
-          {tabs.map(({ to, label, end, key }) => (
-            <NavLink
-              key={key}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                cn(
-                  "inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                )
-              }
-            >
-              {label}
-              {key === "unanswered" && pendingCount !== null && pendingCount > 0 && (
-                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
-                  {pendingCount}
+          {tabs.map(({ to, label, end, key, adminOnly }) => {
+            const disabled = adminOnly === true && !permissions.is_admin;
+            if (disabled) {
+              return (
+                <span
+                  key={key}
+                  className={cn(
+                    "inline-flex cursor-not-allowed items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm font-medium",
+                    "text-muted-foreground/50"
+                  )}
+                  title="Admins only"
+                >
+                  {label}
                 </span>
-              )}
-            </NavLink>
-          ))}
+              );
+            }
+            return (
+              <NavLink
+                key={key}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  cn(
+                    "inline-flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )
+                }
+              >
+                {label}
+                {key === "unanswered" && pendingCount !== null && pendingCount > 0 && (
+                  <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+                    {pendingCount}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
       <Outlet />

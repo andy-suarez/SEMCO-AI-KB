@@ -8,6 +8,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { KBEntriesPage } from "@/pages/KBEntriesPage";
 import { UnansweredPage } from "@/pages/UnansweredPage";
 import { SyncPage } from "@/pages/SyncPage";
+import { ChangelogPage } from "@/pages/ChangelogPage";
 import { CalculatorPage } from "@/pages/CalculatorPage";
 import { UsersPage } from "@/pages/UsersPage";
 
@@ -26,6 +27,7 @@ export function App() {
               <Route path="kb" element={<KBSectionLayout />}>
                 <Route index element={<KBEntriesPage />} />
                 <Route path="unanswered" element={<UnansweredPage />} />
+                <Route path="changelog" element={<ChangelogPage />} />
                 <Route path="sync" element={<SyncPage />} />
               </Route>
 

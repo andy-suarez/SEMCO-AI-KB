@@ -10,6 +10,7 @@ from app.db import get_supabase
 from app.routers import (
     admin,
     calculator,
+    changelog,
     export,
     flows,
     kb,
@@ -39,6 +40,7 @@ app.include_router(calculator.router)
 app.include_router(me.router)
 app.include_router(admin.router)
 app.include_router(flows.router)
+app.include_router(changelog.router)
 
 
 @app.get("/")
