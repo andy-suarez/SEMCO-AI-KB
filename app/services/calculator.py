@@ -1,16 +1,3 @@
-"""Material calculator math.
-
-Pure Python — no I/O, no DB, no HTTP. Takes the spreadsheet's reference
-data (loaded once by the router) and a CalcInput, returns a CalcResult
-with line items grouped by section + a summary block.
-
-Pack optimization rule: fill the demand with as many large packs as
-fully fit by coverage, then top up with small packs by ceil. Works
-even when 5GL coverage isn't exactly 5×(1GL) — e.g., Microbond's
-1GL = 200 sq ft but 5GL = 900 sq ft (a 5GL pack is one item, not
-five). The optimizer minimizes item count without overshooting price.
-"""
-
 from __future__ import annotations
 
 import math
@@ -19,7 +6,6 @@ from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 
-# ---------- input / output shapes ----------------------------------------------
 
 FinishType = str  # 'corsa' | 'polished' | 'vellum' | 'solid' | 'grain'
 SealerKey = str   # 'matte_sealer' | 'titan_shield' | 'satin_stone' | 'natural_shield' | 'none'
@@ -78,7 +64,6 @@ class CalcResult(BaseModel):
     prices_visible: bool = True
 
 
-# ---------- internal product-row shape -----------------------------------------
 
 class Yield(BaseModel):
     """A single product_yields row, in the shape the math wants."""
@@ -94,7 +79,6 @@ class Yield(BaseModel):
     pack_size: str  # 'small' | 'large'
 
 
-# Maps logical lookup keys to the catalog. Built by the router from DB rows.
 class Catalog(BaseModel):
     yields_by_key: Dict[str, Yield] = Field(default_factory=dict)
     finish_to_group: Dict[str, str] = Field(default_factory=dict)
@@ -134,30 +118,13 @@ def build_catalog(
     return cat
 
 
-# ---------- math ---------------------------------------------------------------
 
 def _pack_for_coverage(
     sqft_needed: float,
     small: Yield,
     large: Yield,
 ) -> Tuple[int, int]:
-    """
-    Return (large_packs, small_packs) to cover sqft_needed.
 
-    Strategy:
-      1. Fill large packs that fit fully by coverage.
-      2. Top up the remainder with small packs (rounded up).
-      3. **Round-up heuristic** (matches the sheet): if step 2 produced
-         4+ small packs AND those can be replaced by 1 more large pack
-         with sufficient coverage, prefer that — fewer items at
-         slightly higher cost. This is what makes the spreadsheet
-         output PreStain at 530 sq ft come out as 1×5GL instead of
-         4×1GL, while still keeping SLM at 530 sq ft as 3×1GL (only
-         3 small packs, no round-up triggered).
-
-    Works correctly even when large coverage isn't exactly 5× small
-    coverage — e.g., Microbond's 5GL covers 900 sq ft, not 1000.
-    """
     if sqft_needed <= 0:
         return (0, 0)
 
@@ -185,12 +152,7 @@ def _pack_for_unit_count(
     large: Yield,
     units_per_large: int = 5,
 ) -> Tuple[int, int]:
-    """
-    Return (large_packs, small_packs) for `units_needed` raw units.
 
-    Used when we already know the gallon count (e.g., Color Activator
-    mirroring Liquid). Pack 5-per-large by default.
-    """
     if units_needed <= 0:
         return (0, 0)
     large_packs = units_needed // units_per_large
@@ -266,14 +228,11 @@ def _brown_coat_section(bc: BrownCoatInput, catalog: Catalog) -> Optional[Sectio
     if batches <= 0:
         return None
 
-    # Stone (single 50 lb SKU lives at finish_group='all')
     stone = catalog.yields_by_key.get(_key("stone", "all", "small"))
 
-    # Reuse Vellum/Solid Liquid rows for brown coat (price is finish-independent).
     liquid_small = catalog.yields_by_key.get(_key("liquid", "vellum_solid", "small"))
     liquid_large = catalog.yields_by_key.get(_key("liquid", "vellum_solid", "large"))
 
-    # Additive — only used in brown coat
     additive = catalog.yields_by_key.get(_key("brown_coat_additive", "brown_coat", "small"))
 
     items: List[LineItem] = []
@@ -307,21 +266,17 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
 
     sections: List[Section] = []
 
-    # ---- X-Bond System ------------------------------------------------------
     xbond_items: List[LineItem] = []
 
-    # Stone (single SKU; finish_group='all')
     stone = catalog.yields_by_key.get(_key("stone", "all", "small"))
     if stone and stone.coverage_sqft_per_unit:
         stone_qty = math.ceil(sqft / stone.coverage_sqft_per_unit)
         if stone_qty > 0:
             xbond_items.append(_line_item(stone, stone_qty))
 
-    # Liquid (yield varies by finish_group)
     liquid_items = _packed_lines(sqft, catalog, finish_group, "liquid")
     xbond_items.extend(liquid_items)
 
-    # Color Activator: mirrors Liquid pack counts exactly
     liquid_large_qty = sum(li.qty for li in liquid_items if li.sku_size == "5 GL")
     liquid_small_qty = sum(li.qty for li in liquid_items if li.sku_size == "1 GL")
     activator_large = catalog.yields_by_key.get(_key("color_activator", "all", "large"))
@@ -338,7 +293,6 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
     if xbond_items:
         sections.append(Section(name="X-Bond System", items=xbond_items))
 
-    # ---- Surface Prep -------------------------------------------------------
     prep_items: List[LineItem] = []
 
     # PreStain (Grain only)
@@ -351,8 +305,7 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
 
     # Fabric Reinforcement (manual qty, no sqft math)
     if input.fabric_size and input.fabric_qty > 0:
-        # Fabric rows live with finish_group='all' and pack_size keyed to the size string.
-        # Find the right row by sku_size match.
+
         fabric = next(
             (
                 y for y in catalog.yields_by_key.values()
@@ -366,19 +319,16 @@ def calculate(input: CalcInput, catalog: Catalog) -> CalcResult:
     if prep_items:
         sections.append(Section(name="Surface Prep", items=prep_items))
 
-    # ---- Sealer -------------------------------------------------------------
     if input.sealer and input.sealer != "none":
         sealer_items = _packed_lines(sqft, catalog, "all", input.sealer)
         if sealer_items:
             sections.append(Section(name="Sealer", items=sealer_items))
 
-    # ---- Brown Coat (optional, separate input shape) ------------------------
     if input.brown_coat is not None:
         bc_section = _brown_coat_section(input.brown_coat, catalog)
         if bc_section is not None:
             sections.append(bc_section)
 
-    # ---- Summary ------------------------------------------------------------
     item_count = sum(it.qty for s in sections for it in s.items)
     total_weight = round(
         sum((it.line_weight_lbs or 0.0) for s in sections for it in s.items), 2
