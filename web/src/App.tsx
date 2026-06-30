@@ -5,6 +5,7 @@ import { AuthGuard } from "@/routes/AuthGuard";
 import { Layout } from "@/components/Layout";
 import { KBSectionLayout } from "@/components/KBSectionLayout";
 import { LoginPage } from "@/pages/LoginPage";
+import { SetPasswordPage } from "@/pages/SetPasswordPage";
 import { KBEntriesPage } from "@/pages/KBEntriesPage";
 import { UnansweredPage } from "@/pages/UnansweredPage";
 import { SyncPage } from "@/pages/SyncPage";
@@ -18,6 +19,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/set-password" element={<SetPasswordPage />} />
 
           <Route element={<AuthGuard />}>
             <Route element={<Layout />}>

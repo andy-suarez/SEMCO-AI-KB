@@ -10,10 +10,22 @@ if (!url || !anonKey) {
   );
 }
 
+// Supabase invite/recovery links carry tokens + `type=invite|recovery` in the URL
+// hash. supabase-js (detectSessionInUrl) consumes and strips that hash as soon as
+// the client initializes, so we must read it synchronously at module load — before
+// createClient runs — to know whether the visitor arrived via an invite/recovery
+// link and therefore still needs to set a password.
+const _rawHash =
+  typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+export const INITIAL_AUTH_TYPE: string | null = new URLSearchParams(_rawHash).get(
+  "type"
+);
+
 export const supabase = createClient(url, anonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
   },
 });
 
